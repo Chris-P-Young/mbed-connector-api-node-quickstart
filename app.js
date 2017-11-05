@@ -17,6 +17,8 @@ var port = process.env.PORT || 8080;
 var blinkResourceURI = '/3201/0/5850';
 var blinkPatternResourceURI = '/3201/0/5853';
 var buttonResourceURI = '/3200/0/5501';
+var tempResourceURI = '/3303/0/5700';
+
 
 // Instantiate an mbed Device Connector object
 var mbedConnectorApi = new MbedConnectorApi({
@@ -82,8 +84,30 @@ io.on('connection', function (socket) {
   socket.on('subscribe-to-presses', function (data) {
     // Subscribe to all changes of resource /3200/0/5501 (button presses)
     mbedConnectorApi.putResourceSubscription(data.endpointName, buttonResourceURI, function(error) {
-      if (error) throw error;
+      if(error) {
+        socket.emit('presses', {
+          endpointName: data.endpointName,
+          value: 'Resource not found'
+        });
+        return;
+      }
       socket.emit('subscribed-to-presses', {
+        endpointName: data.endpointName
+      });
+    });
+  });
+
+  socket.on('subscribe-to-temp', function (data) {
+    // Subscribe to all changes of resource /3303/0/5700 (temperature)
+    mbedConnectorApi.putResourceSubscription(data.endpointName, tempResourceURI, function(error) {
+      if(error) {
+        socket.emit('temp', {
+          endpointName: data.endpointName,
+          value: 'Resource not found'
+        });
+        return;
+      }
+      socket.emit('subscribed-to-temp', {
         endpointName: data.endpointName
       });
     });
@@ -99,11 +123,44 @@ io.on('connection', function (socket) {
     });
   });
 
+  socket.on('unsubscribe-to-temp', function(data) {
+    // Unsubscribe from the resource /3303/0/5700 (temperature)
+    mbedConnectorApi.deleteResourceSubscription(data.endpointName, tempResourceURI, function(error) {
+      if (error) throw error;
+      socket.emit('unsubscribed-to-temp', {
+        endpointName: data.endpointName
+      });
+    });
+  });
+
   socket.on('get-presses', function(data) {
     // Read data from GET resource /3200/0/5501 (num button presses)
     mbedConnectorApi.getResourceValue(data.endpointName, buttonResourceURI, function(error, value) {
-      if (error) throw error;
+      if(error) {
+        socket.emit('presses', {
+          endpointName: data.endpointName,
+          value: 'Resource not found'
+        });
+        return;
+      }
       socket.emit('presses', {
+        endpointName: data.endpointName,
+        value: value
+      });
+    });
+  });
+
+  socket.on('get-temp', function(data) {
+    // Read data from GET resource /3303/0/5700 (temperature)
+    mbedConnectorApi.getResourceValue(data.endpointName, tempResourceURI, function(error, value) {
+      if(error) {
+        socket.emit('temp', {
+          endpointName: data.endpointName,
+          value: 'Resource not found'
+        });
+        return;
+      }
+      socket.emit('temp', {
         endpointName: data.endpointName,
         value: value
       });
@@ -134,7 +191,7 @@ io.on('connection', function (socket) {
 });
 
 // When notifications are received through the notification channel, pass the
-// button presses data to all connected browser windows
+// button presses and temp data to all connected browser windows
 mbedConnectorApi.on('notification', function(notification) {
   if (notification.path === buttonResourceURI) {
     sockets.forEach(function(socket) {
@@ -144,6 +201,16 @@ mbedConnectorApi.on('notification', function(notification) {
       });
     });
   }
+
+  if (notification.path === tempResourceURI) {
+    sockets.forEach(function(socket) {
+      socket.emit('temp', {
+        endpointName: notification.ep,
+        value: notification.payload
+      });
+    });
+  }
+
 });
 
 // Start the app

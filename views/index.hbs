@@ -41,9 +41,14 @@
           </div>
           <div class="row">
             <div class="small-12 medium-6 columns">
-              <h4>Presses: <span class="presses-value">Unknown</span></h4>
+              <h4>Counter Val: <span class="presses-value">Unknown</span></h4>
               <label><input type="checkbox" class="subscribe-presses"> Subscribe</label>
               <button class="get-presses">GET</button>
+            </div>
+            <div class="small-12 medium-6 columns">
+	      <h4>Temperature: <span class="temp-value">Unknown</span></h4>
+	      <label><input type="checkbox" class="subscribe-temp"> Subscribe</label>
+	      <button class="get-temp">GET</button>
             </div>
             <div class="small-12 medium-6 columns">
               <h4>LED Blink Pattern</h4>
@@ -96,10 +101,30 @@
             }
           });
 
+          _this.find('.subscribe-temp').change(function() {
+            if ($(this).is(":checked")) {
+              _this.find('.get-temp').prop('disabled', true);
+              socket.emit('subscribe-to-temp', {
+                endpointName: _this.attr('id')
+              });
+            } else {
+              _this.find('.get-temp').prop('disabled', false);
+              socket.emit('unsubscribe-to-temp', {
+                endpointName: _this.attr('id')
+              });
+            }
+          });
+
           _this.find('.get-presses').on('click', function() {
             socket.emit('get-presses', {
               endpointName: _this.attr('id')
             });
+          });
+          
+          _this.find('.get-temp').on('click', function() {
+	    socket.emit('get-temp', {
+	      endpointName: _this.attr('id')
+	    });
           });
 
           _this.find('.blink-pattern').bind('input', function() {
@@ -120,6 +145,7 @@
               endpointName: _this.attr('id')
             });
           });
+          
         });
 
 
@@ -127,14 +153,28 @@
           console.log('presses', data);
           $('#' + data.endpointName + ' .presses-value').html(data.value);
         });
+ 
+        socket.on('temp', function (data) {
+          console.log('temp', data);
+          $('#' + data.endpointName + ' .temp-value').html(data.value);
+        });
 
         socket.on('subscribed-to-presses', function (data) {
           console.log('subscribed-to-presses', data);
         });
 
+        socket.on('subscribed-to-temp', function (data) {
+          console.log('subscribed-to-temp', data);
+        });
+
         socket.on('unsubscribed-to-presses', function (data) {
           console.log('unsubscribed-to-presses', data);
         });
+
+        socket.on('unsubscribed-to-temp', function (data) {
+          console.log('unsubscribed-to-temp', data);
+        });
+         
       });
     </script>
   </body>
